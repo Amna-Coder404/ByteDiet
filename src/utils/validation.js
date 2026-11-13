@@ -6,6 +6,8 @@ export function validateEmail(email) {
   return '';
 }
 
+
+// Check Password has pwd, Length , and  letter + num 
 export function validatePassword(pw) {
   if (!pw) return 'Password is required';
   if (pw.length < 8) return 'Use at least 8 characters';
