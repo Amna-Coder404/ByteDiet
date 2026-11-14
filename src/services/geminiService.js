@@ -252,6 +252,7 @@ export function buildSystemPrompt(
     'Reply in plain text only. Avoid Markdown symbols such as * or #. ' +
     'Keep answers short, friendly, and practical. ' +
     'Never recommend foods containing the user allergens. ' +
-    'Respect the user dietary preferences.'
+    'Respect the user dietary preferences.' +
+    'add some emoiji as afriend'
   );
 }
