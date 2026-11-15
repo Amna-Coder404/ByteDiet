@@ -10,15 +10,18 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors } from '../../constants/theme';
+
 import useHistory from '../../hooks/useHistory';
-import { styles } from '../../styles/History.style';
+
 import Loader from '../../components/Loader';
 import NotFound from '../../components/NotFound';
-
+import { useTheme, useThemedStyles } from '../../context/ThemeContext';
+import { createStyles } from '../../styles/History.style';
 import { number, getTime } from '../../utils/format';
 
 function Macro({ label, value, unit }) {
+
+    const styles = useThemedStyles(createStyles);
     return (
         <View style={styles.macroItem}>
             <Text style={styles.macroValue}>
@@ -31,6 +34,8 @@ function Macro({ label, value, unit }) {
 
 export default function History() {
     const router = useRouter();
+    const { colors } = useTheme();
+    const styles = useThemedStyles(createStyles);
 
     const {
         meals,
@@ -67,7 +72,7 @@ export default function History() {
                         <Ionicons
                             name={selected ? 'checkbox' : 'square-outline'}
                             size={24}
-                            color={selected ? colors.primary : '#9AA5A0'}
+                            color={selected ? colors.primary : colors.muted}
                             style={styles.checkbox}
                         />
                     )}
@@ -124,7 +129,7 @@ export default function History() {
                         hitSlop={10}
                         style={styles.backButton}
                     >
-                        <Ionicons name="close" size={24} color="#202B25" />
+                        <Ionicons name="close" size={24} color={colors.text} />
                     </Pressable>
 
                     <View style={styles.headerText}>
@@ -161,7 +166,7 @@ export default function History() {
                         hitSlop={10}
                         style={styles.backButton}
                     >
-                        <Ionicons name="chevron-back-outline" size={24} color="#202B25" />
+                        <Ionicons name="chevron-back-outline" size={24} color={colors.text} />
                     </Pressable>
 
                     <View style={styles.headerText}>
@@ -202,7 +207,7 @@ export default function History() {
                 <Loader />
             ) : error ? (
                 <NotFound
-                    icon={<Ionicons name="alert-circle-outline" size={48} color="#87928B" />}
+                    icon={<Ionicons name="restaurant-outline" size={48} color={colors.muted} />}
                     text={error}
                 >
                     <Pressable onPress={loadHistory} style={styles.retryButton}>
@@ -211,7 +216,7 @@ export default function History() {
                 </NotFound>
             ) : meals.length === 0 ? (
                 <NotFound
-                    icon={<Ionicons name="restaurant-outline" size={48} color="#87928B" />}
+                    icon={<Ionicons name="restaurant-outline" size={48} color={colors.muted} />}
                     text="No meals yet. Your logged meals will appear here. Start by analyzing a meal with AI Coach."
                 >
                     <Pressable

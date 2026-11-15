@@ -1,18 +1,34 @@
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { Link, useRouter } from 'expo-router';
-import Screen from '../../components/Screen';
-import Input from '../../components/Input';
-import Button from '../../components/Button';
-import { colors } from '../../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+
+import AuthHeader from '../../components/AuthHeader';
+import { useTheme, useThemedStyles } from '../../context/ThemeContext';
+import { createStyles } from '../../styles/Auth.style';
 import { signUp } from '../../services/authService';
 import { validateEmail, validatePassword } from '../../utils/validation';
 
 export default function Signup() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -42,32 +58,98 @@ export default function Signup() {
   };
 
   return (
-    <Screen contentStyle={{ justifyContent: 'center' }}>
-      <Text style={styles.title}>Create account 🌱</Text>
-      <Text style={styles.sub}>Start your personalized nutrition plan.</Text>
+    <KeyboardAvoidingView
+      style={styles.root}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <AuthHeader title={'Create your\naccount'} />
 
-      <Input label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoComplete="email" placeholder="you@example.com" error={errors.email} />
-      <Input label="Password" value={password} onChangeText={setPassword} secureTextEntry placeholder="At least 8 characters" error={errors.password} />
-      <Input label="Confirm password" value={confirm} onChangeText={setConfirm} secureTextEntry placeholder="Repeat password" error={errors.confirm} />
+        <View style={styles.body}>
+          {/* Email */}
+          <View style={[styles.field, errors.email && styles.fieldError]}>
+            <Ionicons name="mail-outline" size={20} color={colors.muted} style={styles.fieldIcon} />
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Email"
+              placeholderTextColor={colors.muted}
+              keyboardType="email-address"
+              autoComplete="email"
+              autoCapitalize="none"
+            />
+          </View>
+          {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
 
-      {formError ? <Text style={styles.formError}>{formError}</Text> : null}
-      <Button title="Sign up" onPress={onSubmit} loading={loading} style={{ marginTop: 6 }} />
+          {/* Password */}
+          <View style={[styles.field, errors.password && styles.fieldError]}>
+            <Ionicons name="lock-closed-outline" size={20} color={colors.muted} style={styles.fieldIcon} />
+            <TextInput
+              style={styles.input}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Password"
+              placeholderTextColor={colors.muted}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+            />
+            <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={10}>
+              <Ionicons
+                name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                size={20}
+                color={colors.muted}
+              />
+            </Pressable>
+          </View>
+          {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
 
-      <View style={styles.row}>
-        <Text style={styles.muted}>Already have an account? </Text>
-        <Link href="/login" replace asChild>
-          <Pressable><Text style={styles.link}>Log in</Text></Pressable>
-        </Link>
-      </View>
-    </Screen>
+          {/* Confirm password */}
+          <View style={[styles.field, errors.confirm && styles.fieldError]}>
+            <Ionicons name="lock-closed-outline" size={20} color={colors.muted} style={styles.fieldIcon} />
+            <TextInput
+              style={styles.input}
+              value={confirm}
+              onChangeText={setConfirm}
+              placeholder="Confirm password"
+              placeholderTextColor={colors.muted}
+              secureTextEntry={!showConfirm}
+              autoCapitalize="none"
+            />
+            <Pressable onPress={() => setShowConfirm((v) => !v)} hitSlop={10}>
+              <Ionicons
+                name={showConfirm ? 'eye-outline' : 'eye-off-outline'}
+                size={20}
+                color={colors.muted}
+              />
+            </Pressable>
+          </View>
+          {errors.confirm ? <Text style={styles.errorText}>{errors.confirm}</Text> : null}
+
+          {formError ? <Text style={styles.formError}>{formError}</Text> : null}
+
+          <Pressable
+            style={[styles.btn, loading && { opacity: 0.7 }]}
+            onPress={onSubmit}
+            disabled={loading}
+          >
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Sign up</Text>}
+          </Pressable>
+
+          <View style={styles.row}>
+            <Text style={styles.muted}>Already have an account? </Text>
+            <Link href="/login" replace asChild>
+              <Pressable>
+                <Text style={styles.link}>Sign in</Text>
+              </Pressable>
+            </Link>
+          </View>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  title: { fontSize: 28, fontWeight: '800', color: colors.text },
-  sub: { color: colors.muted, marginTop: 6, marginBottom: 24 },
-  formError: { color: colors.error, marginBottom: 8, fontWeight: '500' },
-  row: { flexDirection: 'row', justifyContent: 'center', marginTop: 22 },
-  muted: { color: colors.muted },
-  link: { color: colors.primary, fontWeight: '700' },
-});

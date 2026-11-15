@@ -1,16 +1,29 @@
-import { Text, View, Image, Pressable } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
-import Screen from '../../components/Screen';
-import Input from '../../components/Input';
-import Button from '../../components/Button';
-import Chip from '../../components/Chip';
+import { useTheme, useThemedStyles } from '../../context/ThemeContext';
+import { createPersonalStyles } from '../../styles/GroupOnBoarding.style';
 
 import { GENDERS } from '../../constants/options';
 import usePersonal from '../../hooks/usePersonal';
 
-import { personal as styles } from '../../styles/GroupOnBoarding.style';
-
 export default function Personal() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createPersonalStyles);
+  const insets = useSafeAreaInsets();
+
   const {
     isEditing,
     form,
@@ -24,112 +37,169 @@ export default function Personal() {
     onContinue,
   } = usePersonal();
 
+  const statError = errors.age || errors.height || errors.weight;
+
   return (
-    <Screen>
-      <Text style={styles.step}>
-        {isEditing ? 'Update your information' : 'Step 1 of 2'}
-      </Text>
-
-      <Text style={styles.title}>
-        {isEditing ? 'Edit your profile' : 'About you'}
-      </Text>
-
-      <Text style={styles.sub}>
-        {isEditing
-          ? 'Update your personal information.'
-          : 'We use this to calculate your daily needs.'}
-      </Text>
-
-      {/* Profile Avatar */}
-      <View style={styles.avatarSection}>
-        <Pressable onPress={pickAvatar} style={styles.avatarButton}>
-          {avatarSource ? (
-            <Image source={{ uri: avatarSource }} style={styles.avatar} />
-          ) : (
-            <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarInitial}>{initial}</Text>
-            </View>
-          )}
-
-          <View style={styles.cameraIcon}>
-            <Text style={styles.cameraText}>+</Text>
-          </View>
-        </Pressable>
-
-        <Text style={styles.avatarTitle}>Profile picture</Text>
-
-        <Text style={styles.avatarSub}>
-          Add a photo so people can recognize you
-        </Text>
-
-        <Pressable onPress={pickAvatar}>
-          <Text style={styles.changePhoto}>
-            {avatarSource ? 'Change photo' : 'Upload photo'}
+    <KeyboardAvoidingView
+      style={styles.root}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={[styles.pHeader, { paddingTop: insets.top + 16 }]}>
+          <StatusBar style="light" />
+          <View style={styles.shapeA} />
+          <View style={styles.shapeB} />
+          <View style={styles.pFill} />
+          <View style={styles.pSlope} />
+          <Text style={styles.pStep}>
+            {isEditing ? 'Update your information' : 'Step 1 of 2'}
           </Text>
-        </Pressable>
-      </View>
+          <Text style={styles.pTitle}>
+            {isEditing ? 'Edit your profile' : 'About you'}
+          </Text>
+        </View>
 
-      <Input
-        label="Full name"
-        value={form.name}
-        onChangeText={set('name')}
-        autoCapitalize="words"
-        placeholder="Your name"
-        error={errors.name}
-      />
+        <View style={styles.body}>
+          {/* Avatar + text side by side */}
+          <View style={styles.avatarRow}>
+            <Pressable onPress={pickAvatar} style={styles.avatarButton}>
+              {avatarSource ? (
+                <Image source={{ uri: avatarSource }} style={styles.avatar} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Text style={styles.avatarInitial}>{initial}</Text>
+                </View>
+              )}
+              <View style={styles.avatarBadge}>
+                <Ionicons name="camera" size={13} color="#fff" />
+              </View>
+            </Pressable>
 
-      <Input
-        label="Age"
-        value={form.age}
-        onChangeText={set('age')}
-        keyboardType="number-pad"
-        placeholder="e.g. 22"
-        error={errors.age}
-      />
+            <View style={styles.avatarText}>
+              <Text style={styles.avatarTitle}>Profile picture</Text>
+              <Text style={styles.avatarSub}>So people can recognize you</Text>
+              <Pressable onPress={pickAvatar} hitSlop={8}>
+                <Text style={styles.changePhoto}>
+                  {avatarSource ? 'Change photo' : 'Upload photo'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
 
-      <Text style={styles.label}>Gender</Text>
+          <Text style={styles.intro}>
+            {isEditing
+              ? 'Update your personal information.'
+              : 'We use this to calculate your daily needs.'}
+          </Text>
 
-      <View style={styles.chips}>
-        {GENDERS.map((gender) => (
-          <Chip
-            key={gender}
-            label={gender}
-            selected={form.gender === gender}
-            onPress={() => set('gender')(gender)}
-          />
-        ))}
-      </View>
+          {/* Full name */}
+          <Text style={styles.boxLabel}>Full name</Text>
+          <View style={[styles.box, errors.name && styles.boxError]}>
+            <Ionicons
+              name="person-outline"
+              size={20}
+              color={colors.muted}
+              style={styles.fieldIcon}
+            />
+            <TextInput
+              style={styles.input}
+              value={form.name}
+              onChangeText={set('name')}
+              placeholder="Your name"
+              placeholderTextColor={colors.muted}
+              autoCapitalize="words"
+            />
+          </View>
+          {errors.name ? <Text style={styles.errorText}>{errors.name}</Text> : null}
 
-      {errors.gender ? (
-        <Text style={styles.error}>{errors.gender}</Text>
-      ) : null}
+          {/* Age / Height / Weight in one row */}
+          <View style={styles.statRow}>
+            <View style={styles.statCol}>
+              <Text style={styles.boxLabel}>Age</Text>
+              <View style={[styles.box, errors.age && styles.boxError]}>
+                <TextInput
+                  style={[styles.input, styles.inputCenter]}
+                  value={form.age}
+                  onChangeText={set('age')}
+                  placeholder="22"
+                  placeholderTextColor={colors.muted}
+                  keyboardType="number-pad"
+                />
+              </View>
+            </View>
 
-      <Input
-        label="Height (cm)"
-        value={form.height}
-        onChangeText={set('height')}
-        keyboardType="decimal-pad"
-        placeholder="e.g. 165"
-        error={errors.height}
-      />
+            <View style={styles.statCol}>
+              <Text style={styles.boxLabel}>Height (cm)</Text>
+              <View style={[styles.box, errors.height && styles.boxError]}>
+                <TextInput
+                  style={[styles.input, styles.inputCenter]}
+                  value={form.height}
+                  onChangeText={set('height')}
+                  placeholder="165"
+                  placeholderTextColor={colors.muted}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+            </View>
 
-      <Input
-        label="Current weight (kg)"
-        value={form.weight}
-        onChangeText={set('weight')}
-        keyboardType="decimal-pad"
-        placeholder="e.g. 60"
-        error={errors.weight}
-      />
+            <View style={styles.statCol}>
+              <Text style={styles.boxLabel}>Weight (kg)</Text>
+              <View style={[styles.box, errors.weight && styles.boxError]}>
+                <TextInput
+                  style={[styles.input, styles.inputCenter]}
+                  value={form.weight}
+                  onChangeText={set('weight')}
+                  placeholder="60"
+                  placeholderTextColor={colors.muted}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+            </View>
+          </View>
+          {statError ? <Text style={styles.errorText}>{statError}</Text> : null}
 
-      {formError ? <Text style={styles.error}>{formError}</Text> : null}
+          {/* Gender: segmented control */}
+          <Text style={styles.boxLabel}>Gender</Text>
+          <View style={styles.segWrap}>
+            {GENDERS.map((gender) => {
+              const selected = form.gender === gender;
+              return (
+                <Pressable
+                  key={gender}
+                  onPress={() => set('gender')(gender)}
+                  style={[styles.seg, selected && styles.segActive]}
+                >
+                  <Text style={[styles.segText, selected && styles.segTextActive]}>
+                    {gender}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          {errors.gender ? <Text style={styles.errorText}>{errors.gender}</Text> : null}
 
-      <Button
-        title={isEditing ? 'Save changes' : 'Continue'}
-        onPress={onContinue}
-        loading={loading}
-        style={{ marginTop: 8 }}
-      />
-    </Screen>
+          {formError ? <Text style={styles.formError}>{formError}</Text> : null}
+
+          <Pressable
+            style={[styles.btn, loading && { opacity: 0.7 }]}
+            onPress={onContinue}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.btnText}>
+                {isEditing ? 'Save changes' : 'Continue'}
+              </Text>
+            )}
+          </Pressable>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

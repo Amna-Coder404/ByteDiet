@@ -1,84 +1,85 @@
-
 import { useCallback, useEffect, useState } from 'react';
-
-import {
-  Image, Pressable, Text, View,
-} from 'react-native';
-
-import {
-  useFocusEffect,
-  useRouter,
-  useNavigation,
-} from 'expo-router';
-
-import Animated, {
-  FadeInDown,
-} from 'react-native-reanimated';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { useFocusEffect, useRouter, useNavigation } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 
 import Screen from '../../components/Screen';
-import Button from '../../components/Button';
 import Loader from '../../components/Loader';
-
-import { colors } from '../../constants/theme';
-import { useAuth } from '../../context/AuthContext';
-
-import { getOnboardingData } from '../../services/onboardingService';
-import {
-  getTodayMeals,
-  sumMeals,
-} from '../../services/mealService';
-
-import { calcPlan } from '../../utils/nutrition';
-import { resolveAvatarUrl } from '../../utils/avatar';
-import { styles } from '../../styles/Dashboard.style';
-import { Ionicons } from '@expo/vector-icons';
 import NotFound from '../../components/NotFound';
 
-function Macro({ label, value, eaten }) {
-  const percentage = value > 0 ? Math.min(100, (eaten / value) * 100)
-    : 0;
+import { useAuth } from '../../context/AuthContext';
+import { getOnboardingData } from '../../services/onboardingService';
+import { getTodayMeals, sumMeals } from '../../services/mealService';
+import { calcPlan } from '../../utils/nutrition';
+import { resolveAvatarUrl } from '../../utils/avatar';
 
+import { useTheme, useThemedStyles } from '../../context/ThemeContext';
+import { createStyles } from '../../styles/Dashboard.style';
+
+function MacroRow({ label, icon, value, eaten }) {
+  const pct = value > 0 ? Math.min(100, (eaten / value) * 100) : 0;
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   return (
-    <View style={styles.macro}>
-      <Text style={styles.macroValue}>
-        {Math.round(eaten)}g
-      </Text>
-
-      <View style={styles.macroBar}>
-        <View
-          style={[
-            styles.macroFill,
-            { width: `${percentage}%` },
-          ]}
-        />
+    <View style={styles.macroRow}>
+      <View style={styles.macroIcon}>
+        <Ionicons name={icon} size={18} color={colors.primaryDark} />
       </View>
 
-      <Text style={styles.macroLabel}>
-        {label}
-      </Text>
+      <View style={styles.macroBody}>
+        <View style={styles.macroTop}>
+          <Text style={styles.macroLabel}>{label}</Text>
+          <Text style={styles.macroValue}>
+            {Math.round(eaten)} / {value}g
+          </Text>
+        </View>
 
-      <Text style={styles.macroTarget}>
-        of {value}g
-      </Text>
+        <View style={styles.macroBar}>
+          <View style={[styles.macroFill, { width: `${pct}%` }]} />
+        </View>
+      </View>
     </View>
   );
 }
 
+function ActionTile({ icon, title, subtitle, onPress, primary }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
+  return (
+    <Pressable onPress={onPress} style={[styles.tile, primary && styles.tilePrimary]}>
+      <View style={[styles.tileIcon, primary && styles.tileIconPrimary]}>
+        <Ionicons
+          name={icon}
+          size={22}
+          color={primary ? colors.white : colors.primaryDark}
+        />
+      </View>
+      <Text style={[styles.tileTitle, primary && styles.tileTitlePrimary]}>{title}</Text>
+      <Text style={[styles.tileSub, primary && styles.tileSubPrimary]}>{subtitle}</Text>
+    </Pressable>
+  );
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
 
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  const insets = useSafeAreaInsets();
+
   const router = useRouter();
   const navigation = useNavigation();
 
-  // States
   const [data, setData] = useState(null);
   const [meals, setMeals] = useState([]);
   const [error, setError] = useState('');
-  const [convertedAvatar, setConvertedAvatar] = useState(null);
+  const [avatarSrc, setAvatarSrc] = useState(null);
   const [avatarFailed, setAvatarFailed] = useState(false);
 
-  // Derived values
   const avatarUrl = data?.profile?.avatar_url;
 
   const initial = (
@@ -87,47 +88,21 @@ export default function Dashboard() {
     'U'
   ).toUpperCase();
 
-  // Fetch onboarding data
-  useEffect(() => {
-    if (!user?.id) return;
-
-    let active = true;
-
-    getOnboardingData(user.id)
-      .then((result) => {
-        if (active) {
-          setData(result);
-          setError('');
-        }
-      })
-      .catch((err) => {
-        if (active) {
-          setError(
-            err.message || 'Unable to load dashboard.'
-          );
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [user?.id]);
-
-  // Fetch today's meals
+  // Profile + goals (reloads on focus)
   useFocusEffect(
     useCallback(() => {
       if (!user?.id) return;
-
       let active = true;
 
-      getTodayMeals(user.id)
+      getOnboardingData(user.id)
         .then((result) => {
           if (active) {
-            setMeals(result);
+            setData(result);
+            setError('');
           }
         })
         .catch((err) => {
-          console.error('[Meals Error]', err);
+          if (active) setError(err.message || 'Unable to load dashboard.');
         });
 
       return () => {
@@ -136,24 +111,37 @@ export default function Dashboard() {
     }, [user?.id])
   );
 
-  // Resolve avatar URL
+  // Today's meals
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id) return;
+      let active = true;
+
+      getTodayMeals(user.id)
+        .then((result) => {
+          if (active) setMeals(result);
+        })
+        .catch((err) => console.error('[Meals Error]', err));
+
+      return () => {
+        active = false;
+      };
+    }, [user?.id])
+  );
+
+  // Avatar URL
   useEffect(() => {
     let active = true;
-
     setAvatarFailed(false);
-    setConvertedAvatar(null);
+    setAvatarSrc(null);
 
     if (!avatarUrl) return;
 
-    console.log('[Avatar] raw value:', avatarUrl);
-
     resolveAvatarUrl(avatarUrl)
       .then((url) => {
-        console.log('[Avatar] resolved:', url);
-        if (active) setConvertedAvatar(url);
+        if (active) setAvatarSrc(url);
       })
-      .catch((err) => {
-        console.error('[Avatar Resolve Failed]', err);
+      .catch(() => {
         if (active) setAvatarFailed(true);
       });
 
@@ -161,204 +149,177 @@ export default function Dashboard() {
       active = false;
     };
   }, [avatarUrl]);
-  // Error handling
-  // Error handling
+
   if (error) {
     return (
       <Screen contentStyle={{ justifyContent: 'center' }}>
         <NotFound
-          icon={
-            <Ionicons name="alert-circle-outline" size={48} color={colors.error} />
-          }
+          icon={<Ionicons name="alert-circle-outline" size={48} color={colors.error} />}
           text={error}
         />
       </Screen>
     );
   }
 
-  // Loading
-  if (!data?.profile || !data?.goals) {
-    return <Loader />;
-  }
+  if (!data?.profile || !data?.goals) return <Loader />;
 
-  // Dashboard calculations
   const { profile, goals } = data;
-
   const plan = calcPlan(profile, goals);
   const eaten = sumMeals(meals);
 
-  const firstName =
-    profile.name?.trim()?.split(' ')[0] || 'there';
-
+  const firstName = profile.name?.trim()?.split(' ')[0] || 'there';
   const remaining = plan.calories - eaten.calories;
+  const percentage =
+    plan.calories > 0
+      ? Math.min(100, Math.round((eaten.calories / plan.calories) * 100))
+      : 0;
 
-  const percentage = plan.calories > 0
-    ? Math.min(
-      100,
-      Math.round(
-        (eaten.calories / plan.calories) * 100
-      )
-    )
-    : 0;
-
-  const showAvatar =
-    convertedAvatar && !avatarFailed;
+  const showAvatar = avatarSrc && !avatarFailed;
 
   return (
-    <Screen>
+    <View style={styles.root}>
+      <StatusBar style="light" />
 
-      {/* Header */}
-      <Animated.View
-        entering={FadeInDown.duration(350)}
-        style={styles.header}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        <View>
-          <Text style={styles.hello}>
-            Hello, {firstName} 👋
-          </Text>
+        {/* Header */}
+        <View style={[styles.top, { paddingTop: insets.top }]}>
+          <View style={styles.shapeA} />
+          <View style={styles.shapeB} />
 
-          <Text style={styles.subtitle}>
-            Your daily nutrition overview
-          </Text>
+          <Animated.View entering={FadeInDown.duration(350)} style={styles.header}>
+            <View style={styles.avatarButton}>
+              {showAvatar ? (
+                <Image
+                  source={{ uri: avatarSrc }}
+                  style={styles.avatarImage}
+                  resizeMode="cover"
+                  onError={() => setAvatarFailed(true)}
+                />
+              ) : (
+                <View style={styles.avatarFallback}>
+                  <Text style={styles.avatarInitial}>{initial}</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.headerText}>
+              <Text style={styles.subtitle}>Welcome back</Text>
+              <Text style={styles.hello}>{firstName}</Text>
+            </View>
+
+            <Pressable
+              onPress={() => navigation.openDrawer()}
+              hitSlop={10}
+              style={styles.settingsButton}
+            >
+              <Ionicons name="settings-outline" size={22} color={colors.white} />
+            </Pressable>
+          </Animated.View>
         </View>
 
-        <Pressable
-          onPress={() => navigation.openDrawer()}
-          style={styles.avatarButton}
-          hitSlop={10}
-        >
-          {showAvatar ? (
-            <Image
-              source={{ uri: convertedAvatar }}
-              style={styles.avatarImage}
-              resizeMode="cover"
-              onError={(e) => {
-                console.log('[Avatar Image Error]', e.nativeEvent);
-                setAvatarFailed(true);
-              }}
+        <View style={styles.content}>
+          {/* Calories */}
+          <Animated.View
+            entering={FadeInDown.delay(100).duration(350)}
+            style={styles.hero}
+          >
+            <Text style={styles.heroLabel}>
+              {remaining >= 0 ? 'Calories left' : 'Over target'}
+            </Text>
+
+            <Text style={styles.heroValue}>
+              {Math.abs(Math.round(remaining))}
+              <Text style={styles.heroUnit}> kcal</Text>
+            </Text>
+
+            <View style={styles.progressTrack}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${percentage}%` },
+                  remaining < 0 && { backgroundColor: colors.error },
+                ]}
+              />
+            </View>
+
+            <View style={styles.heroStats}>
+              <View style={styles.heroStat}>
+                <Text style={styles.heroStatValue}>{Math.round(eaten.calories)}</Text>
+                <Text style={styles.heroStatLabel}>Eaten</Text>
+              </View>
+
+              <View style={styles.heroDivider} />
+
+              <View style={styles.heroStat}>
+                <Text style={styles.heroStatValue}>{plan.calories}</Text>
+                <Text style={styles.heroStatLabel}>Goal</Text>
+              </View>
+
+              <View style={styles.heroDivider} />
+
+              <View style={styles.heroStat}>
+                <Text style={styles.heroStatValue}>{percentage}%</Text>
+                <Text style={styles.heroStatLabel}>Done</Text>
+              </View>
+            </View>
+          </Animated.View>
+
+          {/* Macros */}
+          <Animated.View
+            entering={FadeInDown.delay(200).duration(350)}
+            style={styles.card}
+          >
+            <Text style={styles.cardTitle}>Macros</Text>
+
+            <MacroRow label="Protein" icon="barbell-outline" value={plan.protein} eaten={eaten.protein} />
+            <MacroRow label="Carbs" icon="leaf-outline" value={plan.carbs} eaten={eaten.carbs} />
+            <MacroRow label="Fat" icon="water-outline" value={plan.fat} eaten={eaten.fat} />
+          </Animated.View>
+
+          {/* Quick actions */}
+          <Animated.View
+            entering={FadeInDown.delay(300).duration(350)}
+            style={styles.tiles}
+          >
+            <ActionTile
+              primary
+              icon="sparkles-outline"
+              title="AI Coach"
+              subtitle="Get your meal plan"
+              onPress={() => router.push('/ai-plan')}
             />
-          ) : (
-            <View style={styles.avatarFallback}>
-              <Text style={styles.avatarInitial}>
-                {initial}
+
+            <ActionTile
+              icon="time-outline"
+              title="History"
+              subtitle="All your meals"
+              onPress={() => router.push('/history')}
+            />
+          </Animated.View>
+
+          {/* Today's meals */}
+          <Animated.View
+            entering={FadeInDown.delay(400).duration(350)}
+            style={styles.mealCard}
+          >
+            <View style={styles.mealIcon}>
+              <Ionicons name="restaurant-outline" size={22} color={colors.primaryDark} />
+            </View>
+
+            <View style={styles.mealText}>
+              <Text style={styles.cardTitle}>Today's meals</Text>
+              <Text style={styles.mealSubtitle}>
+                {meals.length === 0
+                  ? 'No meals logged yet'
+                  : `${meals.length} meal${meals.length > 1 ? 's' : ''} logged today`}
               </Text>
             </View>
-          )}
-        </Pressable>
-      </Animated.View>
-
-
-      {/* Calories */}
-      <Animated.View
-        entering={FadeInDown.delay(100).duration(350)}
-        style={styles.hero}
-      >
-        <Text style={styles.heroLabel}>
-          Calories consumed
-        </Text>
-
-        <Text style={styles.heroValue}>
-          {Math.round(eaten.calories)}
-          <Text style={styles.heroUnit}>
-            {' '}/ {plan.calories} kcal
-          </Text>
-        </Text>
-
-        <View style={styles.bar}>
-          <View
-            style={[
-              styles.barFill,
-              { width: `${percentage}%` },
-            ]}
-          />
+          </Animated.View>
         </View>
-
-        <View style={styles.calorieFooter}>
-          <Text style={styles.heroNote}>
-            {remaining >= 0
-              ? `${Math.round(remaining)} kcal remaining`
-              : `${Math.round(-remaining)} kcal over target`}
-          </Text>
-
-          <Text style={styles.heroNote}>
-            {percentage}%
-          </Text>
-        </View>
-      </Animated.View>
-
-
-      {/* Macronutrients */}
-      <Animated.View
-        entering={FadeInDown.delay(200).duration(350)}
-        style={styles.card}
-      >
-        <Text style={styles.cardTitle}>
-          Nutrition breakdown
-        </Text>
-
-        <View style={styles.macros}>
-          <Macro
-            label="Protein"
-            value={plan.protein}
-            eaten={eaten.protein}
-          />
-
-          <Macro
-            label="Carbs"
-            value={plan.carbs}
-            eaten={eaten.carbs}
-          />
-
-          <Macro
-            label="Fat"
-            value={plan.fat}
-            eaten={eaten.fat}
-          />
-        </View>
-      </Animated.View>
-
-
-      {/* Meals summary */}
-      <Animated.View
-        entering={FadeInDown.delay(300).duration(350)}
-        style={styles.mealCard}
-      >
-        <View style={styles.mealHeader}>
-          <View>
-            <Text style={styles.cardTitle}>
-              Today's meals
-            </Text>
-
-            <Text style={styles.mealSubtitle}>
-              {meals.length === 0
-                ? 'No meals logged yet'
-                : `${meals.length} meals logged today`}
-            </Text>
-          </View>
-
-          <Pressable
-            onPress={() => router.push('/history')}
-            hitSlop={10}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-          >
-            <Text style={styles.viewAll}>View all</Text>
-            <Ionicons name="arrow-forward" size={16} color={colors.primary} />
-          </Pressable>
-        </View>
-      </Animated.View>
-
-
-      {/* AI Coach */}
-      <Animated.View
-        entering={FadeInDown.delay(400).duration(350)}
-        style={styles.aiSection}
-      >
-        <Button
-          title="✨ AI Nutrition Coach"
-          onPress={() => router.push('/ai-plan')}
-        />
-      </Animated.View>
-
-    </Screen>
+      </ScrollView>
+    </View>
   );
 }

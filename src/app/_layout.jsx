@@ -1,4 +1,3 @@
-
 import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import {
@@ -10,9 +9,11 @@ import {
 import { StatusBar } from 'expo-status-bar';
 
 import { AuthProvider, useAuth } from '../context/AuthContext';
-import { colors } from '../constants/theme';
+import { ThemeProvider, useTheme } from '../context/ThemeContext';
 
 function Gate() {
+  const { colors, isDark } = useTheme();
+
   const {
     ready,
     session,
@@ -76,7 +77,7 @@ function Gate() {
 
   return (
     <>
-      <StatusBar style="dark" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
 
       <Stack
         screenOptions={{
@@ -88,11 +89,8 @@ function Gate() {
       />
 
       {!ready && (
-        <View style={styles.loading}>
-          <ActivityIndicator
-            size="large"
-            color={colors.primary}
-          />
+        <View style={[styles.loading, { backgroundColor: colors.bg }]}>
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       )}
     </>
@@ -101,16 +99,17 @@ function Gate() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <Gate />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <Gate />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
 const styles = StyleSheet.create({
   loading: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },

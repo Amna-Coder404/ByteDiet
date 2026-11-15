@@ -1,12 +1,14 @@
-
 import { Text, View, Pressable } from 'react-native';
 
-import { colors } from '../constants/theme';
-import { styles } from '../styles/Ai_chat_ui.style';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import { createStyles } from '../styles/Ai_chat_ui.style';
 
 const r = (n) => Math.round(Number(n) || 0);
 
 export const MealCard = ({ meal, logged, onLog }) => {
+    const { colors } = useTheme();
+    const styles = useThemedStyles(createStyles);
+
     const total = meal.total ?? {};
 
     return (

@@ -1,10 +1,14 @@
-
 import { Drawer } from 'expo-router/drawer';
 import ByteDietDrawerContent from '../../components/ByteDietDrawerContent';
+
+export const unstable_settings = {
+  initialRouteName: 'dashboard',
+};
 
 export default function AppLayout() {
   return (
     <Drawer
+      backBehavior="initialRoute"
       drawerContent={(props) => (
         <ByteDietDrawerContent {...props} />
       )}
@@ -18,19 +22,9 @@ export default function AppLayout() {
         },
       }}
     >
-      <Drawer.Screen
-        name="dashboard"
-        options={{ title: 'Dashboard' }}
-      />
-
-      <Drawer.Screen
-        name="ai-plan"
-        options={{ title: 'AI Nutrition' }}
-      />
-      <Drawer.Screen
-        name="history"
-        options={{ title: 'History' }}
-      />
+      <Drawer.Screen name="dashboard" options={{ title: 'Dashboard' }} />
+      <Drawer.Screen name="ai-plan" options={{ title: 'AI Nutrition' }} />
+      <Drawer.Screen name="history" options={{ title: 'History' }} />
     </Drawer>
   );
 }

@@ -1,6 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
 export default function NotFound({ icon, text, style, children }) {
+    const { colors } = useTheme();
+
     return (
         <View style={[styles.container, style]}>
             {icon ? (
@@ -11,7 +14,9 @@ export default function NotFound({ icon, text, style, children }) {
                 )
             ) : null}
 
-            {text ? <Text style={styles.text}>{text}</Text> : null}
+            {text ? (
+                <Text style={[styles.text, { color: colors.muted }]}>{text}</Text>
+            ) : null}
 
             {children}
         </View>
@@ -25,15 +30,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         paddingHorizontal: 35,
     },
-    emoji: {
-        fontSize: 45,
-        marginBottom: 16,
-    },
-    text: {
-        color: '#87928B',
-        textAlign: 'center',
-        lineHeight: 21,
-        fontSize: 14,
-        marginTop: 8,
-    },
+    emoji: { fontSize: 45, marginBottom: 16 },
+    text: { textAlign: 'center', lineHeight: 21, fontSize: 14, marginTop: 8 },
 });

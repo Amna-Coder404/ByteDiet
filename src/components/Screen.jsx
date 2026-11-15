@@ -1,17 +1,24 @@
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 
-export default function Screen({ children, contentStyle }) {
+export default function Screen({ children, contentStyle, maxWidth = 600 }) {
+  const { colors } = useTheme();
+
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <ScrollView
-          contentContainerStyle={[styles.content, contentStyle]}
+          contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {children}
+          <View style={[styles.inner, { maxWidth }, contentStyle]}>
+            {children}
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -19,7 +26,8 @@ export default function Screen({ children, contentStyle }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
+  safe: { flex: 1 },
   flex: { flex: 1 },
-  content: { padding: 24, paddingBottom: 40, flexGrow: 1 },
+  content: { padding: 4, paddingBottom: 40, flexGrow: 1 },
+  inner: { width: '100%', alignSelf: 'center', flexGrow: 1 },
 });

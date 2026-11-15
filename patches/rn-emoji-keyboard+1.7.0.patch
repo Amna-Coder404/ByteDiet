@@ -1,0 +1,60 @@
+diff --git a/node_modules/rn-emoji-keyboard/src/components/EmojiCategory.tsx b/node_modules/rn-emoji-keyboard/src/components/EmojiCategory.tsx
+index 6869a04..ba3a69b 100644
+--- a/node_modules/rn-emoji-keyboard/src/components/EmojiCategory.tsx
++++ b/node_modules/rn-emoji-keyboard/src/components/EmojiCategory.tsx
+@@ -14,7 +14,7 @@ import { useKeyboardStore } from '../store/useKeyboardStore'
+ import { parseEmoji } from '../utils/parseEmoji'
+ import { removeSkinToneModifier } from '../utils/skinToneSelectorUtils'
+ import { useKeyboard } from '../hooks/useKeyboard'
+-import { InteractionManager } from 'react-native'
++
+ 
+ const emptyEmoji: JsonEmoji = {
+   emoji: '',
+@@ -118,10 +118,10 @@ export const EmojiCategory = React.memo(
+             selectedEmojiStyle={
+               isSelected
+                 ? [
+-                    styles.selectedEmoji,
+-                    { backgroundColor: theme.emoji.selected },
+-                    themeStyles.emoji.selected,
+-                  ]
++                  styles.selectedEmoji,
++                  { backgroundColor: theme.emoji.selected },
++                  themeStyles.emoji.selected,
++                ]
+                 : {}
+             }
+           />
+@@ -145,16 +145,26 @@ export const EmojiCategory = React.memo(
+ 
+     const keyExtractor = React.useCallback((item: JsonEmoji) => item.name, [])
+ 
+-    const [maxIndex, setMaxIndex] = React.useState(0)
++
++
+ 
+     // with InteractionManager we can show emojis after interaction is finished
+     // It helps with delay during category change animation
+-    InteractionManager.runAfterInteractions(() => {
+-      if (maxIndex === 0 && data.length) {
+-        setMaxIndex(minimalEmojisAmountToDisplay)
++    const [maxIndex, setMaxIndex] = React.useState(0);
++
++    React.useEffect(() => {
++      if (maxIndex !== 0 || data.length === 0) {
++        return;
+       }
+-    })
+ 
++      const task = requestIdleCallback(() => {
++        setMaxIndex(minimalEmojisAmountToDisplay);
++      });
++
++      return () => {
++        cancelIdleCallback(task);
++      };
++    }, [maxIndex, data.length, minimalEmojisAmountToDisplay]);
+     const onEndReached = () => {
+       if (maxIndex <= data.length) {
+         setMaxIndex(data.length)
