@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import {
   Stack,
@@ -10,9 +10,14 @@ import { StatusBar } from 'expo-status-bar';
 
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
+import AnimatedSplashScreen from '../components/AnimatedSplashScreen';
+import useSync from '../hooks/offlineSupport/useSync';
 
 function Gate() {
+
   const { colors, isDark } = useTheme();
+
+  useSync();
 
   const {
     ready,
@@ -25,6 +30,8 @@ function Gate() {
   const segments = useSegments();
   const params = useGlobalSearchParams();
   const router = useRouter();
+
+  const [splashDone, setSplashDone] = useState(false);
 
   const group = segments[0];
   const isEditMode = params.mode === 'edit';
@@ -77,7 +84,10 @@ function Gate() {
 
   return (
     <>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <StatusBar
+        style={splashDone ? (isDark ? 'light' : 'dark') : 'light'}
+        translucent
+      />
 
       <Stack
         screenOptions={{
@@ -88,7 +98,13 @@ function Gate() {
         }}
       />
 
-      {!ready && (
+      {/* Animated splash plays first, on top of the app */}
+      {!splashDone && (
+        <AnimatedSplashScreen onFinish={() => setSplashDone(true)} />
+      )}
+
+      {/* Fallback: splash finished but auth is still loading */}
+      {splashDone && !ready && (
         <View style={[styles.loading, { backgroundColor: colors.bg }]}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>

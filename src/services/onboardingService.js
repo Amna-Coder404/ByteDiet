@@ -1,6 +1,6 @@
 
 import { supabase } from '../lib/supabase';
-
+import { cache, pending } from './offlineServices/offlineStore';
 
 
 import * as FileSystem from 'expo-file-system/legacy';
@@ -12,27 +12,47 @@ const has = (v) =>
   v !== null && v !== undefined && String(v).trim() !== '';
 
 export async function getOnboardingData(userId) {
-  const [p, g] = await Promise.all([
-    supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle(),
+  try {
+    const [p, g] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle(),
 
-    supabase
-      .from('nutrition_goals')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle(),
-  ]);
+      supabase
+        .from('nutrition_goals')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle(),
+    ]);
 
-  if (p.error) throw p.error;
-  if (g.error) throw g.error;
+    if (p.error) throw p.error;
+    if (g.error) throw g.error;
 
-  return {
-    profile: p.data,
-    goals: g.data,
-  };
+    const [pendingProfile, pendingGoals] = await Promise.all([
+      pending.get(userId, 'profile'),
+      pending.get(userId, 'goals'),
+    ]);
+
+    // If there are unsynced edits, keep showing them (they are newer than the server)
+    const profile = pendingProfile ? await cache.get(userId, 'profile') : p.data;
+    const goals = pendingGoals ? await cache.get(userId, 'goals') : g.data;
+
+    if (!pendingProfile) await cache.set(userId, 'profile', p.data);
+    if (!pendingGoals) await cache.set(userId, 'goals', g.data);
+
+    return { profile, goals };
+  } catch (err) {
+    // offline or server error: use the copy saved on the phone
+    const [profile, goals] = await Promise.all([
+      cache.get(userId, 'profile'),
+      cache.get(userId, 'goals'),
+    ]);
+
+    if (profile || goals) return { profile, goals };
+    throw err;
+  }
 }
 
 export async function getOnboardingStatus(userId) {

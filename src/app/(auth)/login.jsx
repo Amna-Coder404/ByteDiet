@@ -96,9 +96,6 @@ export default function Login() {
           </View>
           {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
 
-          <Pressable onPress={() => { /* TODO: forgot password */ }}>
-            <Text style={styles.forgot}>Forgot password?</Text>
-          </Pressable>
 
           {formError ? <Text style={styles.formError}>{formError}</Text> : null}
 

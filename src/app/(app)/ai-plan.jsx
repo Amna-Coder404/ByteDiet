@@ -15,7 +15,7 @@ import EmojiPicker from 'rn-emoji-keyboard';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-
+import OfflineGate from '../../components/OfflineGate';
 
 import { useAuth } from '../../context/AuthContext';
 
@@ -28,7 +28,7 @@ import { createStyles } from '../../styles/Ai_chat_ui.style';
 
 const r = (n) => Math.round(Number(n) || 0);
 
-export default function AiChat() {
+function AiChatScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const listRef = useRef(null);
@@ -243,5 +243,14 @@ export default function AiChat() {
         enableSearchBar
       />
     </SafeAreaView>
+  );
+}
+
+
+export default function AiChat() {
+  return (
+    <OfflineGate feature="AI Coach">
+      <AiChatScreen />
+    </OfflineGate>
   );
 }

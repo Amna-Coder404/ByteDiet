@@ -9,15 +9,26 @@ import { Ionicons } from '@expo/vector-icons';
 import Screen from '../../components/Screen';
 import Loader from '../../components/Loader';
 import NotFound from '../../components/NotFound';
+import OfflineBanner from '../../components/OfflineBanner';
+import TipCard from '../../components/TipCard';
 
 import { useAuth } from '../../context/AuthContext';
 import { getOnboardingData } from '../../services/onboardingService';
 import { getTodayMeals, sumMeals } from '../../services/mealService';
+import { cacheGet, cacheSet } from '../../services/offlineServices/cacheService';
+import { useNetwork } from '../../hooks/offlineSupport/useNetwork';
 import { calcPlan } from '../../utils/nutrition';
 import { resolveAvatarUrl } from '../../utils/avatar';
 
 import { useTheme, useThemedStyles } from '../../context/ThemeContext';
 import { createStyles } from '../../styles/Dashboard.style';
+
+// Local date like 2026-11-15, used so cached meals are only reused for the same day
+function todayKey() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 
 function MacroRow({ label, icon, value, eaten }) {
   const pct = value > 0 ? Math.min(100, (eaten / value) * 100) : 0;
@@ -66,6 +77,7 @@ function ActionTile({ icon, title, subtitle, onPress, primary }) {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { isOnline } = useNetwork();
 
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
@@ -77,6 +89,8 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
   const [meals, setMeals] = useState([]);
   const [error, setError] = useState('');
+  const [fromCache, setFromCache] = useState(false);
+  const [lastSynced, setLastSynced] = useState(null);
   const [avatarSrc, setAvatarSrc] = useState(null);
   const [avatarFailed, setAvatarFailed] = useState(false);
 
@@ -88,54 +102,90 @@ export default function Dashboard() {
     'U'
   ).toUpperCase();
 
-  // Profile + goals (reloads on focus)
+  // Profile + goals: show saved data first, then refresh when online
   useFocusEffect(
     useCallback(() => {
       if (!user?.id) return;
       let active = true;
+      const key = `dashboard:${user.id}`;
 
-      getOnboardingData(user.id)
-        .then((result) => {
-          if (active) {
-            setData(result);
-            setError('');
+      (async () => {
+        const cached = await cacheGet(key);
+        if (!active) return;
+
+        if (cached?.value) {
+          setData(cached.value);
+          setLastSynced(cached.savedAt);
+          setError('');
+        }
+
+        // Offline: keep whatever is saved
+        if (isOnline === false) {
+          setFromCache(!!cached);
+          if (!cached) setError('You are offline and there is no saved data yet. Connect to the internet once to get started.');
+          return;
+        }
+
+        try {
+          const result = await getOnboardingData(user.id);
+          if (!active) return;
+          setData(result);
+          setError('');
+          setFromCache(false);
+          setLastSynced(Date.now());
+          cacheSet(key, result);
+        } catch (err) {
+          if (!active) return;
+          if (cached?.value) {
+            setFromCache(true); // request failed, keep showing saved data
+          } else {
+            setError(err.message || 'Unable to load dashboard.');
           }
-        })
-        .catch((err) => {
-          if (active) setError(err.message || 'Unable to load dashboard.');
-        });
+        }
+      })();
 
       return () => {
         active = false;
       };
-    }, [user?.id])
+    }, [user?.id, isOnline])
   );
 
-  // Today's meals
+  // Today's meals: same idea, saved per day
   useFocusEffect(
     useCallback(() => {
       if (!user?.id) return;
       let active = true;
+      const key = `meals:${user.id}:${todayKey()}`;
 
-      getTodayMeals(user.id)
-        .then((result) => {
-          if (active) setMeals(result);
-        })
-        .catch((err) => console.error('[Meals Error]', err));
+      (async () => {
+        const cached = await cacheGet(key);
+        if (active && cached?.value) setMeals(cached.value);
+
+        if (isOnline === false) return;
+
+        try {
+          const result = await getTodayMeals(user.id);
+          if (!active) return;
+          setMeals(result);
+          cacheSet(key, result);
+        } catch (err) {
+          console.error('[Meals Error]', err);
+        }
+      })();
 
       return () => {
         active = false;
       };
-    }, [user?.id])
+    }, [user?.id, isOnline])
   );
 
-  // Avatar URL
+  // Avatar URL (needs internet; falls back to the initial letter when offline)
   useEffect(() => {
     let active = true;
     setAvatarFailed(false);
     setAvatarSrc(null);
 
-    if (!avatarUrl) return;
+    if (!avatarUrl || isOnline === false) return;
 
     resolveAvatarUrl(avatarUrl)
       .then((url) => {
@@ -148,13 +198,19 @@ export default function Dashboard() {
     return () => {
       active = false;
     };
-  }, [avatarUrl]);
+  }, [avatarUrl, isOnline]);
 
-  if (error) {
+  if (error && !data) {
     return (
       <Screen contentStyle={{ justifyContent: 'center' }}>
         <NotFound
-          icon={<Ionicons name="alert-circle-outline" size={48} color={colors.error} />}
+          icon={
+            <Ionicons
+              name={isOnline === false ? 'cloud-offline-outline' : 'alert-circle-outline'}
+              size={48}
+              color={isOnline === false ? colors.muted : colors.error}
+            />
+          }
           text={error}
         />
       </Screen>
@@ -175,6 +231,7 @@ export default function Dashboard() {
       : 0;
 
   const showAvatar = avatarSrc && !avatarFailed;
+  const showOfflineBanner = isOnline === false || fromCache;
 
   return (
     <View style={styles.root}>
@@ -221,6 +278,9 @@ export default function Dashboard() {
         </View>
 
         <View style={styles.content}>
+          {/* Offline notice */}
+          {showOfflineBanner && <OfflineBanner lastSynced={lastSynced} />}
+
           {/* Calories */}
           <Animated.View
             entering={FadeInDown.delay(100).duration(350)}
@@ -288,35 +348,21 @@ export default function Dashboard() {
               primary
               icon="sparkles-outline"
               title="AI Coach"
-              subtitle="Get your meal plan"
+              subtitle={isOnline === false ? 'Needs internet' : 'Get your meal plan'}
               onPress={() => router.push('/ai-plan')}
             />
 
             <ActionTile
               icon="time-outline"
               title="History"
-              subtitle="All your meals"
+              subtitle={isOnline === false ? 'Needs internet' : 'All your meals'}
               onPress={() => router.push('/history')}
             />
           </Animated.View>
 
-          {/* Today's meals */}
-          <Animated.View
-            entering={FadeInDown.delay(400).duration(350)}
-            style={styles.mealCard}
-          >
-            <View style={styles.mealIcon}>
-              <Ionicons name="restaurant-outline" size={22} color={colors.primaryDark} />
-            </View>
-
-            <View style={styles.mealText}>
-              <Text style={styles.cardTitle}>Today's meals</Text>
-              <Text style={styles.mealSubtitle}>
-                {meals.length === 0
-                  ? 'No meals logged yet'
-                  : `${meals.length} meal${meals.length > 1 ? 's' : ''} logged today`}
-              </Text>
-            </View>
+          {/* Daily tip (works offline) */}
+          <Animated.View entering={FadeInDown.delay(400).duration(350)}>
+            <TipCard />
           </Animated.View>
         </View>
       </ScrollView>

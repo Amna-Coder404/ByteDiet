@@ -4,12 +4,11 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { useAuth } from '../context/AuthContext';
-import {
-    getOnboardingData,
-    saveProfile,
-    uploadAvatar,
-} from '../services/onboardingService';
+import { getOnboardingData } from '../services/onboardingService';
+import { saveProfileOfflineFirst } from '../services/offlineServices/syncService';
+import { pending, isNetworkError } from '../services/offlineServices/offlineStore';
 import { validatePersonal } from '../utils/validation';
+import useNetwork from './offlineSupport/useNetwork';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
@@ -19,6 +18,7 @@ export default function usePersonal() {
     const isEditing = mode === 'edit';
 
     const { user, refreshOnboarding } = useAuth();
+    const { isOnline } = useNetwork();
 
     const [form, setForm] = useState({
         name: '',
@@ -40,7 +40,7 @@ export default function usePersonal() {
         setForm((current) => ({ ...current, [key]: value }));
     };
 
-    // Load existing profile
+    // Load existing profile (server, or the copy saved on the phone)
     useEffect(() => {
         if (!user?.id) return;
 
@@ -64,8 +64,19 @@ export default function usePersonal() {
                 setAvatarUrl(profile.avatar_url ?? null);
             })
             .catch((error) => {
-                if (active) setFormError(error.message);
+                // first time + offline: nothing to load, not an error
+                if (active && !isNetworkError(error.message)) {
+                    setFormError(error.message);
+                }
             });
+
+        // photo that was picked offline and is not uploaded yet
+        pending.get(user.id, 'profile').then((p) => {
+            if (active && p?.avatarUri) {
+                setAvatarUri(p.avatarUri);
+                setAvatarMimeType(p.avatarMimeType || 'image/jpeg');
+            }
+        });
 
         return () => {
             active = false;
@@ -116,7 +127,7 @@ export default function usePersonal() {
         }
     };
 
-    // Save profile
+    // Save profile (works offline)
     const onContinue = async () => {
         const validationErrors = validatePersonal(form);
 
@@ -133,45 +144,39 @@ export default function usePersonal() {
         setLoading(true);
 
         try {
-            let uploadedAvatarUrl;
-
-            // Upload only when a new image is selected
-            if (avatarUri) {
-                const uploadResult = await uploadAvatar(
-                    user.id,
+            const res = await saveProfileOfflineFirst(
+                user.id,
+                {
+                    name: form.name.trim(),
+                    age: parseInt(form.age, 10),
+                    gender: form.gender,
+                    heightCm: Number(form.height),
+                    weightKg: Number(form.weight),
                     avatarUri,
-                    avatarMimeType
-                );
-
-                if (!uploadResult.ok) {
-                    setFormError(uploadResult.error);
-                    return;
-                }
-
-                uploadedAvatarUrl = uploadResult.url;
-            }
-
-            const res = await saveProfile(user.id, {
-                name: form.name.trim(),
-                age: parseInt(form.age, 10),
-                gender: form.gender,
-                heightCm: Number(form.height),
-                weightKg: Number(form.weight),
-                avatarUrl: uploadedAvatarUrl,
-            });
+                    avatarMimeType,
+                },
+                isOnline !== false
+            );
 
             if (!res.ok) {
                 setFormError(res.error);
                 return;
             }
 
-            if (uploadedAvatarUrl) {
-                setAvatarUrl(uploadedAvatarUrl);
+            if (res.queued) {
+                Alert.alert(
+                    'Saved offline',
+                    'Your changes are saved on this phone and will upload when you are back online.'
+                );
+            } else if (res.avatarUrl) {
+                setAvatarUrl(res.avatarUrl);
                 setAvatarUri(null);
             }
 
             if (isEditing) {
-                await refreshOnboarding();
+                try {
+                    await refreshOnboarding();
+                } catch { }
                 router.replace('/dashboard');
             } else {
                 router.push('/fitness');

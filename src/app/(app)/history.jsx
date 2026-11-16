@@ -18,6 +18,7 @@ import NotFound from '../../components/NotFound';
 import { useTheme, useThemedStyles } from '../../context/ThemeContext';
 import { createStyles } from '../../styles/History.style';
 import { number, getTime } from '../../utils/format';
+import OfflineGate from '../../components/OfflineGate';
 
 function Macro({ label, value, unit }) {
 
@@ -32,7 +33,7 @@ function Macro({ label, value, unit }) {
     );
 }
 
-export default function History() {
+function HistoryScreen() {
     const router = useRouter();
     const { colors } = useTheme();
     const styles = useThemedStyles(createStyles);
@@ -245,5 +246,13 @@ export default function History() {
                 />
             )}
         </SafeAreaView>
+    );
+}
+
+export default function History() {
+    return (
+        <OfflineGate feature="History">
+            <HistoryScreen />
+        </OfflineGate>
     );
 }

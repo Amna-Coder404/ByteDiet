@@ -119,7 +119,6 @@ async function callOnce(body) {
       };
     }
 
-    console.log('[ByteDiet AI] Success:', body.mode);
 
     return { ok: true, data };
   } catch (error) {

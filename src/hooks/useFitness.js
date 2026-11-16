@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
+import { Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { ALLERGIES, DIETS } from '../constants/options';
 import { useAuth } from '../context/AuthContext';
-import {
-    getOnboardingData,
-    saveNutritionGoals,
-} from '../services/onboardingService';
+import { getOnboardingData } from '../services/onboardingService';
+import { saveGoalsOfflineFirst } from '../services/offlineServices/syncService';
+import useNetwork from './offlineSupport/useNetwork';
 
 export default function useFitness() {
     const router = useRouter();
@@ -14,6 +14,7 @@ export default function useFitness() {
     const isEditing = mode === 'edit';
 
     const { user, refreshOnboarding } = useAuth();
+    const { isOnline } = useNetwork();
 
     const [goal, setGoal] = useState('');
     const [activity, setActivity] = useState('');
@@ -26,7 +27,7 @@ export default function useFitness() {
     const [formError, setFormError] = useState('');
     const [loading, setLoading] = useState(false);
 
-    // Load saved goals
+    // Load saved goals (server, or the copy saved on the phone)
     useEffect(() => {
         let active = true;
 
@@ -87,18 +88,30 @@ export default function useFitness() {
 
         setLoading(true);
 
-        const res = await saveNutritionGoals(user.id, {
-            fitnessGoal: goal,
-            activityLevel: activity,
-            dietaryPreference:
-                diet === 'Other' && dietOther.trim() ? dietOther.trim() : diet,
-            allergies: [...allergies, ...customAllergies],
-        });
+        const res = await saveGoalsOfflineFirst(
+            user.id,
+            {
+                fitnessGoal: goal,
+                activityLevel: activity,
+                dietaryPreference:
+                    diet === 'Other' && dietOther.trim() ? dietOther.trim() : diet,
+                allergies: [...allergies, ...customAllergies],
+            },
+            isOnline !== false
+
+        );
 
         if (!res.ok) {
             setLoading(false);
             setFormError(res.error);
             return;
+        }
+
+        if (res.queued) {
+            Alert.alert(
+                'Saved offline',
+                'Your goals are saved on this phone and will upload when you are back online.'
+            );
         }
 
         try {

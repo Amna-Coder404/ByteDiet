@@ -155,11 +155,6 @@ async function requestGemini(key: string, requestBody: any, model: string) {
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
     try {
-      console.log('[ByteDiet AI] Gemini request:', {
-        model,
-        attempt,
-        maxRetries: MAX_RETRIES,
-      });
 
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
@@ -446,11 +441,6 @@ Deno.serve(async (req) => {
       };
     }
 
-    console.log('[ByteDiet AI] Starting request:', {
-      mode,
-      models: MODELS,
-      messagesCount: messages.length,
-    });
 
     // Call Gemini API (with model fallback)
     let result: any;
