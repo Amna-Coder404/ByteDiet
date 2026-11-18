@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -15,12 +14,34 @@ import { calcPlan } from '../utils/nutrition';
 
 const roundCalories = (value) => Math.round(Number(value) || 0);
 
-// suggenstions for defalt promets
-export const SUGGESTIONS = [
+// Default prompt suggestions
+const POOL = [
     'How many calories do I have left today?',
     'Meal ideas for dinner',
     'High-protein snack ideas',
+    'Quick breakfast ideas under 400 calories',
+    'How much protein should I eat today?',
+    'Healthy lunch ideas for work',
+    'Low-carb dinner options',
+    'Suggest a post-workout meal',
 ];
+
+// New random 3 every time the app loads this file
+export const SUGGESTIONS = [...POOL].sort(() => Math.random() - 0.5).slice(0, 3);
+
+// Detects: "I eat apple", "Ieat apple", "I ate 2 rotis", "I'm eating rice", "I drank milk",
+// "add this to my meal", "maine apple khaya", "chai pi li"
+const MEAL_LOG_REGEX =
+    /\b(i\s*(?:['’]m|['’]ve|am|have|just)?\s*(?:ate|eat|eaten|eating|had|drank|drink|drinking)|add\s+(?:this|it)|log\s+(?:this|it)|add\s+to\s+(?:my\s+)?(?:meal|meals|today|diary)|khaya|khayi|khaye|kha\s+li(?:ya)?|khaa\s+li(?:ya)?|kha\s+lia|kha\s+raha|kha\s+rahi|piya|pi\s+li(?:ya)?)\b/i;
+
+const looksLikeMealLog = (text) => {
+    const value = (text || '').trim();
+
+    // Questions like "Can I eat an apple?" should go to normal chat
+    if (value.endsWith('?')) return false;
+
+    return MEAL_LOG_REGEX.test(value);
+};
 
 export function useAiChat(userId) {
     const idRef = useRef(1);
@@ -67,7 +88,7 @@ export function useAiChat(userId) {
                         id: nextId(),
                         role: 'model',
                         local: true,
-                        text: `Hi ${firstName}! 👋 Send me a photo of your meal and I’ll estimate the calories, or ask me anything about your nutrition.`,
+                        text: `Hi ${firstName}! 👋 Send me a photo of your meal or tell me what you ate (like "I ate 2 rotis and dal") and I’ll estimate the calories. You can also ask me anything about your nutrition.`,
                     },
                 ]);
             } catch (error) {
@@ -99,7 +120,7 @@ export function useAiChat(userId) {
             let result;
 
             if (camera) {
-                // ask for permissions 
+                // Ask for camera permission
                 const permission = await ImagePicker.requestCameraPermissionsAsync();
 
                 if (!permission.granted) {
@@ -120,7 +141,7 @@ export function useAiChat(userId) {
                 });
             }
 
-            // result cancel ho gay then return nothing 
+            // If cancelled, return nothing
             if (result.canceled || !result.assets?.[0]?.uri) return;
 
             const compressed = await ImageManipulator.manipulateAsync(
@@ -171,7 +192,8 @@ export function useAiChat(userId) {
             .slice(-6)
             .map((message) => ({
                 role: message.role,
-                text: message.meal ? `Meal analysis: ${message.meal.meal_name}, about ${roundCalories(message.meal.total?.calories)} kcal.`
+                text: message.meal
+                    ? `Meal analysis: ${message.meal.meal_name}, about ${roundCalories(message.meal.total?.calories)} kcal.`
                     : message.text,
             }))
             .filter((message) => message.text);
@@ -206,6 +228,9 @@ export function useAiChat(userId) {
         const attachedImage = image;
         const hasPhoto = !!attachedImage;
 
+        // Photo OR a text message that sounds like a meal log -> meal card
+        const isMealLog = hasPhoto || looksLikeMealLog(text);
+
         const userMessage = {
             id: nextId(),
             role: 'user',
@@ -228,16 +253,18 @@ export function useAiChat(userId) {
                 eaten
             );
 
-            // Image-based meal analysis
-            if (hasPhoto) {
+            // Meal analysis (photo and/or text)
+            if (isMealLog) {
                 const result = await analyzeMeal(
                     {
                         role: 'user',
                         text: text || 'Estimate the calories in this meal.',
-                        image: {
-                            mimeType: attachedImage.mimeType,
-                            data: attachedImage.base64,
-                        },
+                        ...(hasPhoto && {
+                            image: {
+                                mimeType: attachedImage.mimeType,
+                                data: attachedImage.base64,
+                            },
+                        }),
                     },
                     system
                 );
@@ -261,7 +288,7 @@ export function useAiChat(userId) {
                         {
                             id: nextId(),
                             role: 'model',
-                            text: result.meal.note || 'I could not see any food there.',
+                            text: result.meal.note || 'I could not find any food in that.',
                         },
                     ]);
                     return;

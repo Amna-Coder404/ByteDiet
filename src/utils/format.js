@@ -40,3 +40,42 @@ export const getTime = (value) => {
         minute: '2-digit',
     });
 };
+
+// "Good morning", "Good afternoon", "Good evening" (or "Good night" late at night)
+export const getGreeting = (value = new Date()) => {
+    const hour = new Date(value).getHours();
+
+    if (hour >= 5 && hour < 12) return 'Good morning';
+    if (hour >= 12 && hour < 17) return 'Good afternoon';
+    if (hour >= 17 && hour < 21) return 'Good evening';
+
+    return 'Good night';
+};
+
+
+
+// "13 Nov 2026"
+export const getJoinedDate = (value) => {
+    if (!value) return '';
+
+    return new Date(value).toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+    });
+};
+
+// Day number since start. Day 1 = the start day.
+export const getDayNumber = (value) => {
+    if (!value) return 0;
+
+    const startKey = getDateKey(value);
+    const todayKey = getDateKey(new Date());
+
+    const days = Math.round(
+        (new Date(`${todayKey}T00:00:00`) - new Date(`${startKey}T00:00:00`)) /
+        86400000
+    );
+
+    return Math.max(0, days) + 1;
+};

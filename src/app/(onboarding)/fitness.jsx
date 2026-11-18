@@ -21,6 +21,13 @@ import {
   FITNESS_GOALS,
 } from '../../constants/options';
 import useFitness from '../../hooks/useFitness';
+// import { getJoinedDate, getDayNumber } from '../../utils/format';
+import { useEffect, useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { getOnboardingData } from '../../services/onboardingService';
+import { getJoinedDate, getDayNumber } from '../../utils/format';
+import { Ionicons } from '@expo/vector-icons';
+
 
 export default function Fitness() {
   const { colors } = useTheme();
@@ -48,6 +55,18 @@ export default function Fitness() {
     loading,
     onFinish,
   } = useFitness();
+  const { user } = useAuth();
+  const [startedAt, setStartedAt] = useState(null);
+
+  useEffect(() => {
+    if (!isEditing || !user?.id) return;
+
+    getOnboardingData(user.id)
+      .then(({ goals }) => setStartedAt(goals?.goal_started_at ?? null))
+      .catch(() => { });
+  }, [isEditing, user?.id]);
+
+
 
   const Pill = ({ label, selected, onPress }) => (
     <Pressable onPress={onPress} style={[styles.pill, selected && styles.pillSelected]}>
@@ -88,7 +107,18 @@ export default function Fitness() {
           </Text>
         </View>
 
+        {/* <View style={styles.body}> */}
         <View style={styles.body}>
+          {isEditing && startedAt ? (
+            <View style={styles.joinRow}>
+              <Ionicons name="calendar-outline" size={16} color={colors.muted} />
+              <Text style={styles.joinText}>
+                Goal started {getJoinedDate(startedAt)} · Day {getDayNumber(startedAt)}
+              </Text>
+            </View>
+          ) : null}
+
+          {/* <Text style={styles.intro}></Text> */}
           <Text style={styles.intro}>
             {isEditing
               ? 'Update your nutrition and fitness preferences.'

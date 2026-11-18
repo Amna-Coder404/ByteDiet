@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-
+import { getDateKey, getDateLabel, getTime } from '../utils/format';
 // All AI requests go through the Supabase Edge Function.
 // Gemini API keys must never be exposed in the mobile app.
 
@@ -119,6 +119,7 @@ async function callOnce(body) {
       };
     }
 
+    console.log('[ByteDiet AI] Success:', body.mode);
 
     return { ok: true, data };
   } catch (error) {
@@ -178,12 +179,19 @@ export async function chatWithAI(messages, system) {
 }
 
 // --------------------------------------------------
-// Analyze meal image
+// Analyze meal (photo and/or text)
 // --------------------------------------------------
 
 export async function analyzeMeal(message, system) {
-  if (!message || message.role !== 'user' || !message.image?.data) {
-    return { ok: false, error: 'Please select a valid food image.' };
+  if (
+    !message ||
+    message.role !== 'user' ||
+    (!message.image?.data && !message.text?.trim())
+  ) {
+    return {
+      ok: false,
+      error: 'Please add a food photo or describe what you ate.',
+    };
   }
 
   const result = await call({ mode: 'meal', messages: [message], system });
@@ -195,11 +203,37 @@ export async function analyzeMeal(message, system) {
   if (!result.data?.meal) {
     return {
       ok: false,
-      error: 'Could not read that meal. Try a clearer photo.',
+      error: 'Could not read that meal. Try a clearer photo or describe it again.',
     };
   }
 
   return { ok: true, meal: result.data.meal };
+}
+
+// Day count since the goal started. Day 1 = the start day.
+function getGoalJourney(startedAt) {
+  if (!startedAt) return null;
+
+  const start = new Date(startedAt);
+  if (Number.isNaN(start.getTime())) return null;
+
+  const startKey = getDateKey(start);
+  const todayKey = getDateKey(new Date());
+
+  const daysAgo = Math.max(
+    0,
+    Math.round(
+      (new Date(`${todayKey}T00:00:00`) - new Date(`${startKey}T00:00:00`)) /
+      86400000
+    )
+  );
+
+  return {
+    daysAgo,
+    dayNumber: daysAgo + 1,
+    date: getDateLabel(startKey), // "Today", "Yesterday" or "Friday, 13 Nov 2026"
+    time: getTime(start),         // "09:45 PM"
+  };
 }
 
 // --------------------------------------------------
@@ -219,7 +253,12 @@ export function buildSystemPrompt(
   const targetCalories = Number(plan.calories) || 0;
   const eaten = Number(eatenCalories) || 0;
   const left = targetCalories - eaten;
+  const journey = getGoalJourney(goals.goal_started_at);
 
+  const journeyLine = journey
+    ? `Goal started: ${journey.date} at ${journey.time}. ` +
+    `That was ${journey.daysAgo} days ago, so today is day ${journey.dayNumber} of the journey.\n`
+    : '';
   return (
     'You are ByteDiet, a friendly nutrition coach inside a mobile app. ' +
     'You are not a doctor. For medical issues, advise the user to consult a qualified healthcare professional.\n' +
@@ -242,7 +281,7 @@ export function buildSystemPrompt(
 
     `Eaten today so far: ${Math.round(eaten)} kcal. ` +
     `Remaining today: ${Math.round(left)} kcal.\n` +
-
+    journeyLine +
     'Always reply in the same language and script the user writes in. ' +
     'If the user writes Roman Urdu (Urdu in English letters), reply in Roman Urdu. ' +
     'If the user writes Urdu script, reply in Urdu script. ' +
@@ -251,7 +290,14 @@ export function buildSystemPrompt(
     'Reply in plain text only. Avoid Markdown symbols such as * or #. ' +
     'Keep answers short, friendly, and practical. ' +
     'Never recommend foods containing the user allergens. ' +
-    'Respect the user dietary preferences.' +
-    'add some emoiji as afriend'
+    'Respect the user dietary preferences. ' +
+    'Use some friendly emojis, like a good friend would. ' +
+    'When analyzing a meal, always use the quantity the user mentions in their text ' +
+    '(for example "2 rotis" or "1 bowl") over what you guess from the photo. ' +
+    'If the user describes food in text only, estimate calories and macros from that text. ' +
+    'If there is no food in the photo or text, set is_food to false. ' +
+    'If the user asks when they started their goal or how many days have passed, ' +
+    'use the exact start date, time and day count given above. Do not calculate dates yourself. '
   );
 }
+

@@ -69,3 +69,16 @@ export async function getMealHistory(userId) {
     return data ?? [];
 }
 
+// All meals logged from a given date until now
+export async function getMealsSince(userId, sinceISO) {
+    const { data, error } = await supabase
+        .from('meals')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('created_at', sinceISO)
+        .order('created_at', { ascending: true });
+
+    if (error) throw error;
+
+    return data ?? [];
+}

@@ -7,11 +7,6 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./src/assets/icon.png",
-    "splash": {
-      "image": "./src/assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#6366F1"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.bytediet.app"
@@ -20,7 +15,7 @@
       "package": "com.bytediet.app",
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/adaptive-icon.png",
-        "backgroundColor": "#5B5BD6"
+        "backgroundColor": "#7312E0"
       }
     },
     "web": {
@@ -28,7 +23,33 @@
     },
     "plugins": [
       "expo-router",
-      "expo-status-bar"
-    ]
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./src/assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#7312E0"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow ByteDiet to use your camera to scan your food.",
+          "photosPermission": "Allow ByteDiet to access your photos to analyze meals."
+        }
+      ]
+    ],
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "411401db-f4ff-4299-8257-dbd4ad67cefb"
+      }
+    }
   }
 }

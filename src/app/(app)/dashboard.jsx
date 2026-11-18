@@ -20,8 +20,12 @@ import { useNetwork } from '../../hooks/offlineSupport/useNetwork';
 import { calcPlan } from '../../utils/nutrition';
 import { resolveAvatarUrl } from '../../utils/avatar';
 
+import { getGreeting } from '../../utils/format';
+
 import { useTheme, useThemedStyles } from '../../context/ThemeContext';
 import { createStyles } from '../../styles/Dashboard.style';
+import GoalHeatmap from '../../components/GoalHeatmap';
+
 
 // Local date like 2026-11-15, used so cached meals are only reused for the same day
 function todayKey() {
@@ -30,27 +34,20 @@ function todayKey() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-function MacroRow({ label, icon, value, eaten }) {
-  const pct = value > 0 ? Math.min(100, (eaten / value) * 100) : 0;
-  const { colors } = useTheme();
+// One macro column inside the Today card
+function MacroCol({ label, value, eaten }) {
   const styles = useThemedStyles(createStyles);
+  const pct = value > 0 ? Math.min(100, (eaten / value) * 100) : 0;
+
   return (
-    <View style={styles.macroRow}>
-      <View style={styles.macroIcon}>
-        <Ionicons name={icon} size={18} color={colors.primaryDark} />
-      </View>
-
-      <View style={styles.macroBody}>
-        <View style={styles.macroTop}>
-          <Text style={styles.macroLabel}>{label}</Text>
-          <Text style={styles.macroValue}>
-            {Math.round(eaten)} / {value}g
-          </Text>
-        </View>
-
-        <View style={styles.macroBar}>
-          <View style={[styles.macroFill, { width: `${pct}%` }]} />
-        </View>
+    <View style={styles.macroCol}>
+      <Text style={styles.macroLabel}>{label}</Text>
+      <Text style={styles.macroValue}>
+        {Math.round(eaten)}
+        <Text style={styles.macroUnit}> / {value}g</Text>
+      </Text>
+      <View style={styles.macroBar}>
+        <View style={[styles.macroFill, { width: `${pct}%` }]} />
       </View>
     </View>
   );
@@ -262,11 +259,13 @@ export default function Dashboard() {
               )}
             </View>
 
+            {/* Header */}
             <View style={styles.headerText}>
-              <Text style={styles.subtitle}>Welcome back</Text>
-              <Text style={styles.hello}>{firstName}</Text>
+              <Text style={styles.subtitle}>{getGreeting()}</Text>
+              <Text style={styles.hello}>{firstName} 👋</Text>
             </View>
 
+            {/* Setting icon */}
             <Pressable
               onPress={() => navigation.openDrawer()}
               hitSlop={10}
@@ -281,19 +280,29 @@ export default function Dashboard() {
           {/* Offline notice */}
           {showOfflineBanner && <OfflineBanner lastSynced={lastSynced} />}
 
-          {/* Calories */}
+          {/* Calories + Macros in one card */}
           <Animated.View
             entering={FadeInDown.delay(100).duration(350)}
-            style={styles.hero}
+            style={styles.today}
           >
-            <Text style={styles.heroLabel}>
-              {remaining >= 0 ? 'Calories left' : 'Over target'}
-            </Text>
+            <View style={styles.todayTop}>
+              <View>
+                <Text style={styles.todayLabel}>
+                  {remaining >= 0 ? 'Calories left' : 'Over target'}
+                </Text>
+                <Text style={styles.todayValue}>
+                  {Math.abs(Math.round(remaining))}
+                  <Text style={styles.todayUnit}> kcal</Text>
+                </Text>
+              </View>
 
-            <Text style={styles.heroValue}>
-              {Math.abs(Math.round(remaining))}
-              <Text style={styles.heroUnit}> kcal</Text>
-            </Text>
+              <View style={styles.todayEaten}>
+                <Text style={styles.todayEatenValue}>
+                  {Math.round(eaten.calories)} / {plan.calories}
+                </Text>
+                <Text style={styles.todayEatenLabel}>kcal eaten</Text>
+              </View>
+            </View>
 
             <View style={styles.progressTrack}>
               <View
@@ -305,39 +314,13 @@ export default function Dashboard() {
               />
             </View>
 
-            <View style={styles.heroStats}>
-              <View style={styles.heroStat}>
-                <Text style={styles.heroStatValue}>{Math.round(eaten.calories)}</Text>
-                <Text style={styles.heroStatLabel}>Eaten</Text>
-              </View>
-
-              <View style={styles.heroDivider} />
-
-              <View style={styles.heroStat}>
-                <Text style={styles.heroStatValue}>{plan.calories}</Text>
-                <Text style={styles.heroStatLabel}>Goal</Text>
-              </View>
-
-              <View style={styles.heroDivider} />
-
-              <View style={styles.heroStat}>
-                <Text style={styles.heroStatValue}>{percentage}%</Text>
-                <Text style={styles.heroStatLabel}>Done</Text>
-              </View>
+            <View style={styles.macros}>
+              <MacroCol label="Protein" value={plan.protein} eaten={eaten.protein} />
+              <MacroCol label="Carbs" value={plan.carbs} eaten={eaten.carbs} />
+              <MacroCol label="Fat" value={plan.fat} eaten={eaten.fat} />
             </View>
           </Animated.View>
 
-          {/* Macros */}
-          <Animated.View
-            entering={FadeInDown.delay(200).duration(350)}
-            style={styles.card}
-          >
-            <Text style={styles.cardTitle}>Macros</Text>
-
-            <MacroRow label="Protein" icon="barbell-outline" value={plan.protein} eaten={eaten.protein} />
-            <MacroRow label="Carbs" icon="leaf-outline" value={plan.carbs} eaten={eaten.carbs} />
-            <MacroRow label="Fat" icon="water-outline" value={plan.fat} eaten={eaten.fat} />
-          </Animated.View>
 
           {/* Quick actions */}
           <Animated.View
@@ -364,6 +347,16 @@ export default function Dashboard() {
           <Animated.View entering={FadeInDown.delay(400).duration(350)}>
             <TipCard />
           </Animated.View>
+
+          {/*  */}
+          <Animated.View entering={FadeInDown.delay(150).duration(350)}>
+            <GoalHeatmap
+              userId={user?.id}
+              startedAt={goals?.goal_started_at}
+              target={plan?.calories}
+            />
+          </Animated.View>
+
         </View>
       </ScrollView>
     </View>

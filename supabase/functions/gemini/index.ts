@@ -50,7 +50,8 @@ const json = (body: unknown, status = 200) =>
 const MEAL_INSTRUCTION = `
 You are a professional nutrition estimation assistant.
 
-Analyze the food in the image and estimate its nutritional values.
+The user gives you a photo of food, a text description of what they ate, or both.
+Estimate the nutritional values of the meal.
 
 Return ONLY valid JSON using this exact structure:
 
@@ -78,8 +79,11 @@ Return ONLY valid JSON using this exact structure:
 Rules:
 - Estimate realistic nutritional values.
 - All nutritional values must be numbers.
-- If the image does not contain food, set is_food to false.
-- Do not invent food items that are not visible.
+- If the user mentions a quantity in their text (for example "2 rotis", "1 bowl", "3 pieces"), ALWAYS use that quantity instead of guessing from the photo.
+- If there is only text and no photo, estimate from the text description alone.
+- If there is a photo and text, use the photo to identify the food and the text for quantity and extra items (for example "also add 1 glass of milk").
+- If neither the photo nor the text contains food, set is_food to false and explain briefly in note.
+- Do not invent food items that are not visible or mentioned.
 - Write meal_name, item names and note in the same language the user wrote in (default English). Keep the JSON keys in English.
 - Return JSON only.
 - Do not include Markdown or code fences.
@@ -405,15 +409,22 @@ Deno.serve(async (req) => {
       contents.push({ role: message.role, parts });
     }
 
-    // Meal mode validation
+    // Meal mode validation: one user message with a photo and/or text
     if (mode === 'meal') {
-      if (
-        messages.length !== 1 ||
-        messages[0].role !== 'user' ||
-        !messages[0].image
-      ) {
+      if (messages.length !== 1 || messages[0].role !== 'user') {
         return json(
-          { error: 'Meal analysis requires one user image message' },
+          { error: 'Meal analysis requires one user message' },
+          400,
+        );
+      }
+
+      const hasImage = Boolean(messages[0].image);
+      const hasText =
+        typeof messages[0].text === 'string' && messages[0].text.trim() !== '';
+
+      if (!hasImage && !hasText) {
+        return json(
+          { error: 'Meal analysis requires a food photo or a text description' },
           400,
         );
       }

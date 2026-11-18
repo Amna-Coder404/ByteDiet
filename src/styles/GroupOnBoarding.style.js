@@ -163,6 +163,16 @@ const shared = (colors) => {
         },
         btnGhost: { alignItems: 'center', paddingVertical: 16, marginTop: 8 },
         btnGhostText: { color: colors.muted, fontWeight: '600', fontSize: 15 },
+        joinRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            marginBottom: 12,
+        },
+        joinText: {
+            fontSize: 13,
+            color: colors.muted,
+        },
     };
 };
 
@@ -218,6 +228,7 @@ export const createPersonalStyles = (colors) => {
             fontSize: 14,
             marginTop: 6,
         },
+
     });
 };
 

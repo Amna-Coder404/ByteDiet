@@ -87,8 +87,8 @@ export const createStyles = (colors) =>
         /* ---------- Content ---------- */
         content: { paddingHorizontal: 20 },
 
-        /* ---------- Calorie card (overlaps the header) ---------- */
-        hero: {
+        /* ---------- Today card: calories + macros (overlaps the header) ---------- */
+        today: {
             marginTop: -60,
             backgroundColor: colors.card,
             borderRadius: 24,
@@ -96,21 +96,30 @@ export const createStyles = (colors) =>
             marginBottom: 18,
             ...shadow,
         },
-        heroLabel: {
+        todayTop: {
+            flexDirection: 'row',
+            alignItems: 'flex-end',
+            justifyContent: 'space-between',
+        },
+        todayLabel: {
             color: colors.muted,
             fontSize: 12,
             fontWeight: '700',
             textTransform: 'uppercase',
             letterSpacing: 1,
         },
-        heroValue: {
+        todayValue: {
             color: colors.text,
-            fontSize: 46,
+            fontSize: 42,
             fontWeight: '800',
             letterSpacing: -1,
-            marginTop: 6,
+            marginTop: 4,
         },
-        heroUnit: { fontSize: 16, fontWeight: '600', color: colors.muted },
+        todayUnit: { fontSize: 16, fontWeight: '600', color: colors.muted },
+        todayEaten: { alignItems: 'flex-end', paddingBottom: 6 },
+        todayEatenValue: { color: colors.text, fontSize: 15, fontWeight: '700' },
+        todayEatenLabel: { color: colors.muted, fontSize: 12, marginTop: 2 },
+
         progressTrack: {
             height: 8,
             borderRadius: 4,
@@ -119,54 +128,21 @@ export const createStyles = (colors) =>
             marginTop: 16,
         },
         progressFill: { height: '100%', borderRadius: 4, backgroundColor: colors.primary },
-        heroStats: {
+
+        macros: {
             flexDirection: 'row',
-            alignItems: 'center',
-            marginTop: 20,
-            paddingTop: 18,
+            gap: 16,
+            marginTop: 18,
+            paddingTop: 16,
             borderTopWidth: 1,
             borderTopColor: colors.border,
         },
-        heroStat: { flex: 1, alignItems: 'center' },
-        heroStatValue: { color: colors.text, fontSize: 18, fontWeight: '700' },
-        heroStatLabel: { color: colors.muted, fontSize: 12, marginTop: 3 },
-        heroDivider: { width: 1, height: 28, backgroundColor: colors.border },
-
-        /* ---------- Cards ---------- */
-        card: {
-            backgroundColor: colors.card,
-            borderRadius: 24,
-            padding: 20,
-            marginBottom: 18,
-            ...shadow,
-        },
-        cardTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
-
-        /* ---------- Macros ---------- */
-        macroRow: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 12,
-            marginTop: 18,
-        },
-        macroIcon: {
-            width: 40,
-            height: 40,
-            borderRadius: 13,
-            backgroundColor: colors.primaryLight,
-            alignItems: 'center',
-            justifyContent: 'center',
-        },
-        macroBody: { flex: 1 },
-        macroTop: {
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-        },
-        macroLabel: { color: colors.text, fontSize: 14, fontWeight: '600' },
-        macroValue: { color: colors.muted, fontSize: 12, fontWeight: '600' },
+        macroCol: { flex: 1 },
+        macroLabel: { color: colors.muted, fontSize: 12, fontWeight: '600' },
+        macroValue: { color: colors.text, fontSize: 15, fontWeight: '700', marginTop: 4 },
+        macroUnit: { color: colors.muted, fontSize: 11, fontWeight: '600' },
         macroBar: {
-            height: 6,
+            height: 5,
             borderRadius: 3,
             backgroundColor: colors.primaryLight,
             overflow: 'hidden',
@@ -197,27 +173,6 @@ export const createStyles = (colors) =>
         tileTitlePrimary: { color: colors.white },
         tileSub: { color: colors.muted, fontSize: 12, marginTop: 4 },
         tileSubPrimary: { color: 'rgba(255,255,255,0.8)' },
-
-        /* ---------- Today's meals ---------- */
-        mealCard: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 14,
-            backgroundColor: colors.card,
-            borderRadius: 24,
-            padding: 18,
-            ...shadow,
-        },
-        mealIcon: {
-            width: 46,
-            height: 46,
-            borderRadius: 15,
-            backgroundColor: colors.primaryLight,
-            alignItems: 'center',
-            justifyContent: 'center',
-        },
-        mealText: { flex: 1 },
-        mealSubtitle: { color: colors.muted, fontSize: 13, marginTop: 3 },
     });
 
 // Fallback for files that still import { styles } (light only)
